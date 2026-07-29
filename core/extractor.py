@@ -1,14 +1,20 @@
 """
-Extração inteligente da NF utilizando OCR com coordenadas.
+Extração inteligente da NF utilizando EasyOCR.
 """
 
 import re
 from typing import Optional
 
-import pytesseract
+import easyocr
 
-from config import OCR_LANGUAGE
 from core.image import melhorar_imagem
+
+
+reader = easyocr.Reader(
+    ["pt"],
+    gpu=False,
+    verbose=False
+)
 
 
 PALAVRAS_CHAVE = {
@@ -26,44 +32,41 @@ PALAVRAS_CHAVE = {
 def extrair_nf_por_coordenadas(imagem) -> Optional[str]:
     """
     Localiza o número da NF analisando a posição das palavras
-    reconhecidas pelo OCR.
+    reconhecidas pelo EasyOCR.
     """
 
     imagem = melhorar_imagem(imagem)
 
-    dados = pytesseract.image_to_data(
-        imagem,
-        lang=OCR_LANGUAGE,
-        config="--oem 3 --psm 7",
-        output_type=pytesseract.Output.DICT,
-    )
+    resultados = reader.readtext(imagem, detail=1)
 
     palavras = []
 
-    for i, texto in enumerate(dados["text"]):
+    for bbox, texto, confianca in resultados:
 
         texto = texto.strip().upper()
 
         if not texto:
             continue
 
-        try:
-            confianca = float(dados["conf"][i])
-        except ValueError:
-            confianca = -1
-
-        if confianca < 40:
+        if confianca < 0.40:
             continue
+
+        x = int(min(p[0] for p in bbox))
+        y = int(min(p[1] for p in bbox))
+        w = int(max(p[0] for p in bbox) - x)
+        h = int(max(p[1] for p in bbox) - y)
 
         palavras.append(
             {
                 "texto": texto.replace(".", ""),
-                "x": dados["left"][i],
-                "y": dados["top"][i],
-                "w": dados["width"][i],
-                "h": dados["height"][i],
+                "x": x,
+                "y": y,
+                "w": w,
+                "h": h,
             }
         )
+
+    palavras.sort(key=lambda p: (p["y"], p["x"]))
 
     for indice, palavra in enumerate(palavras):
 

@@ -1,34 +1,34 @@
 """
-Módulo responsável pela execução do OCR utilizando Tesseract.
+Módulo responsável pela execução do OCR utilizando EasyOCR.
 """
 
-import cv2
 import numpy as np
-import pytesseract
+import cv2
+import easyocr
 from PIL import Image
 from numpy.typing import NDArray
 
-from config import OCR_LANGUAGE, TESSERACT_PATH
 from core.image import melhorar_imagem
 
-
-# Configura o executável do Tesseract
-pytesseract.pytesseract.tesseract_cmd = str(TESSERACT_PATH)
-
+# Cria o leitor apenas uma vez
+reader = easyocr.Reader(
+    ['pt'],
+    gpu=False
+)
 
 Imagem = Image.Image | NDArray[np.uint8]
 
 
 def ocr_imagem(imagem: Imagem) -> str:
     """
-    Executa OCR em uma imagem.
+    Executa OCR utilizando EasyOCR.
 
     Aceita:
         - PIL.Image
-        - numpy.ndarray (OpenCV)
+        - numpy.ndarray
 
     Retorna:
-        Texto reconhecido pelo Tesseract.
+        Texto reconhecido.
     """
 
     if isinstance(imagem, Image.Image):
@@ -39,10 +39,10 @@ def ocr_imagem(imagem: Imagem) -> str:
 
     imagem = melhorar_imagem(imagem)
 
-    texto = pytesseract.image_to_string(
+    resultado = reader.readtext(
         imagem,
-        lang=OCR_LANGUAGE,
-        config="--oem 3 --psm 6"
+        detail=0,
+        paragraph=True
     )
 
-    return texto.strip()
+    return " ".join(resultado).strip()
