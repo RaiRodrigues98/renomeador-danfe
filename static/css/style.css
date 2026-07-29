@@ -1,0 +1,453 @@
+/* ===========================
+   CORES DA EMPRESA
+=========================== */
+
+:root{
+
+    --azul:#282A74;
+    --azul-hover:#1F215C;
+
+    --dourado:#CBAD63;
+    --dourado-hover:#B5964F;
+
+    --cinza:#F5F7FB;
+    --cinza2:#ECEFF5;
+
+    --texto:#2F3542;
+
+}
+
+
+/* ===========================
+   GERAL
+=========================== */
+
+body{
+
+    background:var(--cinza);
+
+    font-family:'Segoe UI',sans-serif;
+
+    color:var(--texto);
+
+}
+
+
+.container{
+
+    max-width:1200px;
+
+}
+
+
+/* ===========================
+   CABEÇALHO
+=========================== */
+
+.header-card{
+
+    background:white;
+
+    border-radius:18px;
+
+    padding:25px;
+
+    box-shadow:0 10px 25px rgba(0,0,0,.08);
+
+}
+
+
+.logo{
+
+    height:75px;
+
+}
+
+
+.titulo{
+
+    font-size:34px;
+
+    font-weight:700;
+
+    color:var(--azul);
+
+    margin:0;
+
+}
+
+
+.subtitulo{
+
+    color:#777;
+
+    margin:0;
+
+}
+
+
+/* ===========================
+   UPLOAD
+=========================== */
+
+.drop-area{
+
+    background:white;
+
+    border:3px dashed var(--azul);
+
+    border-radius:20px;
+
+    padding:60px;
+
+    text-align:center;
+
+    transition:.35s;
+
+    box-shadow:0 10px 20px rgba(0,0,0,.05);
+
+}
+
+
+.drop-area.dragover{
+
+    background:#EEF1FF;
+
+    transform:scale(1.01);
+
+}
+
+
+.icone-upload{
+
+    font-size:60px;
+
+    color:var(--dourado);
+
+    margin-bottom:15px;
+
+}
+
+
+.drop-area h3{
+
+    color:var(--azul);
+
+    font-weight:700;
+
+}
+
+
+/* ===========================
+   BOTÕES
+=========================== */
+
+.btn{
+
+    border-radius:12px;
+
+    padding:12px 28px;
+
+    font-weight:600;
+
+    transition:.3s;
+
+}
+
+
+.btn-selecionar{
+
+    background:var(--azul);
+
+    color:white;
+
+}
+
+.btn-selecionar:hover{
+
+    background:var(--azul-hover);
+
+    color:white;
+
+}
+
+
+.btn-processar{
+
+    background:var(--azul);
+
+    color:white;
+
+}
+
+.btn-processar:hover{
+
+    background:var(--azul-hover);
+
+    color:white;
+
+}
+
+
+.btn-download{
+
+    background:var(--dourado);
+
+    color:white;
+
+}
+
+.btn-download:hover{
+
+    background:var(--dourado-hover);
+
+    color:white;
+
+}
+
+
+/* ===========================
+   CARDS
+=========================== */
+
+.indicador{
+
+    background:white;
+
+    border-radius:20px;
+
+    padding:30px;
+
+    text-align:center;
+
+    box-shadow:0 8px 20px rgba(0,0,0,.08);
+
+    transition:.3s;
+
+}
+
+
+.indicador:hover{
+
+    transform:translateY(-4px);
+
+}
+
+
+.indicador .icone{
+
+    font-size:40px;
+
+    margin-bottom:10px;
+
+}
+
+
+.titulo-indicador{
+
+    color:#666;
+
+    font-size:18px;
+
+}
+
+
+.valor-indicador{
+
+    font-size:44px;
+
+    font-weight:bold;
+
+    color:var(--azul);
+
+}
+
+
+.sucesso{
+
+    border-top:6px solid #28A745;
+
+}
+
+
+.erro{
+
+    border-top:6px solid #DC3545;
+
+}
+
+
+/* ===========================
+   BARRA
+=========================== */
+
+.barra-custom{
+
+    height:30px;
+
+    border-radius:20px;
+
+    overflow:hidden;
+
+    background:#DDD;
+
+}
+
+
+.progress-bar{
+
+    background:linear-gradient(
+        90deg,
+        var(--dourado),
+        #DFC98F
+    );
+
+    font-weight:bold;
+
+}
+
+
+.texto-progresso{
+
+    margin-top:10px;
+
+    text-align:center;
+
+    font-weight:600;
+
+}
+
+
+/* ===========================
+   CARDS
+=========================== */
+
+.card-custom{
+
+    background:white;
+
+    border-radius:20px;
+
+    padding:25px;
+
+    box-shadow:0 8px 20px rgba(0,0,0,.08);
+
+}
+
+
+/* ===========================
+   LOGS
+=========================== */
+
+.logs{
+
+    background:#1D2330;
+
+    color:white;
+
+    border-radius:15px;
+
+    padding:15px;
+
+    margin-top:15px;
+
+    height:260px;
+
+    overflow:auto;
+
+    font-family:Consolas, monospace;
+
+}
+
+
+.logs div{
+
+    margin-bottom:6px;
+
+}
+
+
+/* ===========================
+   TABELA
+=========================== */
+
+.tabela-resultado{
+
+    margin-top:15px;
+
+}
+
+
+.tabela-resultado thead{
+
+    background:var(--azul);
+
+    color:white;
+
+}
+
+
+.tabela-resultado thead th{
+
+    background:var(--azul);
+
+    color:white;
+
+    border:none;
+
+}
+
+
+.tabela-resultado tbody tr:hover{
+
+    background:#EEF2FF;
+
+}
+
+
+/* ===========================
+   LISTA DE ARQUIVOS
+=========================== */
+
+.arquivo{
+
+    background:white;
+
+    border-left:5px solid var(--dourado);
+
+    padding:12px 18px;
+
+    margin-bottom:10px;
+
+    border-radius:10px;
+
+    box-shadow:0 4px 10px rgba(0,0,0,.05);
+
+}
+
+
+/* ===========================
+   RESPONSIVO
+=========================== */
+
+@media(max-width:768px){
+
+    .titulo{
+
+        font-size:24px;
+
+    }
+
+    .logo{
+
+        height:55px;
+
+    }
+
+    .drop-area{
+
+        padding:35px;
+
+    }
+
+}

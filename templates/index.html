@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Renomeador DANFE</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/style.css">
+
+</head>
+
+<body>
+
+<div class="container py-5">
+
+    <!-- ========================= -->
+    <!-- CABEÇALHO -->
+    <!-- ========================= -->
+
+    <div class="header-card">
+
+        <div class="d-flex align-items-center">
+
+            <img
+                src="/static/img/logo.png"
+                class="logo"
+                alt="Logo">
+
+            <div class="ms-4">
+
+                <h1 class="titulo">
+                    Renomeador DANFE
+                </h1>
+
+                <p class="subtitulo">
+                    Processamento Automático de Notas Fiscais
+                </p>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- ========================= -->
+    <!-- DRAG & DROP -->
+    <!-- ========================= -->
+
+    <div id="drop-area" class="drop-area mt-4">
+
+        <div class="icone-upload">
+            ☁
+        </div>
+
+        <h3>Arraste seus PDFs aqui</h3>
+
+        <p>ou</p>
+
+        <button
+            id="btnSelecionar"
+            class="btn btn-selecionar">
+
+            Selecionar Arquivos
+
+        </button>
+
+        <input
+            id="arquivos"
+            type="file"
+            multiple
+            accept=".pdf"
+            hidden>
+
+    </div>
+
+
+    <div
+        id="listaArquivos"
+        class="mt-4">
+    </div>
+
+
+    <!-- ========================= -->
+    <!-- BOTÕES -->
+    <!-- ========================= -->
+
+    <div class="acoes mt-4">
+
+        <button
+            id="btnProcessar"
+            class="btn btn-processar">
+
+            🚀 Processar
+
+        </button>
+
+        <button
+            id="btnDownload"
+            class="btn btn-download"
+            style="display:none;">
+
+            📥 Baixar Arquivos
+
+        </button>
+
+    </div>
+
+
+    <!-- ========================= -->
+    <!-- CARDS -->
+    <!-- ========================= -->
+
+    <div class="row mt-5">
+
+        <div class="col-lg-4 mb-4">
+
+            <div class="indicador">
+
+                <div class="icone">
+                    📄
+                </div>
+
+                <div class="titulo-indicador">
+                    Arquivos
+                </div>
+
+                <div
+                    id="totalArquivos"
+                    class="valor-indicador">
+
+                    0
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="col-lg-4 mb-4">
+
+            <div class="indicador sucesso">
+
+                <div class="icone">
+                    ✅
+                </div>
+
+                <div class="titulo-indicador">
+                    Sucesso
+                </div>
+
+                <div
+                    id="totalSucesso"
+                    class="valor-indicador">
+
+                    0
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="col-lg-4 mb-4">
+
+            <div class="indicador erro">
+
+                <div class="icone">
+                    ❌
+                </div>
+
+                <div class="titulo-indicador">
+                    Erros
+                </div>
+
+                <div
+                    id="totalErro"
+                    class="valor-indicador">
+
+                    0
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- ========================= -->
+    <!-- PROGRESSO -->
+    <!-- ========================= -->
+
+    <div
+        id="progressoContainer"
+        class="mt-4"
+        style="display:none;">
+
+        <div class="progress barra-custom">
+
+            <div
+                id="barraProgresso"
+                class="progress-bar"
+                style="width:0%;">
+
+                0%
+
+            </div>
+
+        </div>
+
+        <div
+            id="textoProgresso"
+            class="texto-progresso">
+
+            Aguardando processamento...
+
+        </div>
+
+    </div>
+
+
+    <!-- ========================= -->
+    <!-- LOGS -->
+    <!-- ========================= -->
+
+    <div class="card-custom mt-5">
+
+        <h4>
+
+            📝 Logs do Processamento
+
+        </h4>
+
+        <div
+            id="logs"
+            class="logs">
+
+        </div>
+
+    </div>
+
+
+    <!-- ========================= -->
+    <!-- RESULTADOS -->
+    <!-- ========================= -->
+
+    <div class="card-custom mt-5">
+
+        <h4>
+
+            📊 Resultado
+
+        </h4>
+
+        <div class="table-responsive">
+
+            <table class="table tabela-resultado align-middle">
+
+                <thead>
+
+                    <tr>
+
+                        <th>Arquivo</th>
+                        <th>NF</th>
+                        <th>Novo Nome</th>
+                        <th>Status</th>
+
+                    </tr>
+
+                </thead>
+
+                <tbody id="tabelaResultados">
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+    </div>
+
+</div>
+
+<script src="/static/js/script.js"></script>
+
+</body>
+
+</html>
