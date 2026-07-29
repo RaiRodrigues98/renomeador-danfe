@@ -1,27 +1,26 @@
 """
-Módulo responsável pela execução do OCR utilizando EasyOCR.
+Módulo responsável pela execução do OCR utilizando RapidOCR.
 """
 
-import numpy as np
 import cv2
-import easyocr
+import numpy as np
 from PIL import Image
 from numpy.typing import NDArray
+from rapidocr_onnxruntime import RapidOCR
 
 from core.image import melhorar_imagem
 
-# Cria o leitor apenas uma vez
-reader = easyocr.Reader(
-    ['pt'],
-    gpu=False
-)
+
+# Inicializa o OCR apenas uma vez
+reader = RapidOCR()
+
 
 Imagem = Image.Image | NDArray[np.uint8]
 
 
 def ocr_imagem(imagem: Imagem) -> str:
     """
-    Executa OCR utilizando EasyOCR.
+    Executa OCR utilizando RapidOCR.
 
     Aceita:
         - PIL.Image
@@ -39,10 +38,14 @@ def ocr_imagem(imagem: Imagem) -> str:
 
     imagem = melhorar_imagem(imagem)
 
-    resultado = reader.readtext(
-        imagem,
-        detail=0,
-        paragraph=True
-    )
+    resultado, _ = reader(imagem)
 
-    return " ".join(resultado).strip()
+    if not resultado:
+        return ""
+
+    textos = []
+
+    for item in resultado:
+        textos.append(item[1])
+
+    return " ".join(textos).strip()

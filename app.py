@@ -9,7 +9,10 @@ from routes.processar import router as processar_router
 
 BASE_DIR = Path(__file__).resolve().parent
 
-app = FastAPI(title="Renomeador DANFE")
+app = FastAPI(
+    title="Renomeador DANFE",
+    version="2.0.0"
+)
 
 app.mount(
     "/static",
@@ -27,10 +30,8 @@ app.include_router(download_router)
 
 @app.get("/")
 async def home(request: Request):
+
     return templates.TemplateResponse(
         request=request,
         name="index.html",
-        context={
-            "request": request
-        }
     )

@@ -1,20 +1,16 @@
 """
-Extração inteligente da NF utilizando EasyOCR.
+Extração inteligente da NF utilizando RapidOCR.
 """
 
 import re
 from typing import Optional
 
-import easyocr
+from rapidocr_onnxruntime import RapidOCR
 
 from core.image import melhorar_imagem
 
 
-reader = easyocr.Reader(
-    ["pt"],
-    gpu=False,
-    verbose=False
-)
+reader = RapidOCR()
 
 
 PALAVRAS_CHAVE = {
@@ -32,12 +28,15 @@ PALAVRAS_CHAVE = {
 def extrair_nf_por_coordenadas(imagem) -> Optional[str]:
     """
     Localiza o número da NF analisando a posição das palavras
-    reconhecidas pelo EasyOCR.
+    reconhecidas pelo RapidOCR.
     """
 
     imagem = melhorar_imagem(imagem)
 
-    resultados = reader.readtext(imagem, detail=1)
+    resultados, _ = reader(imagem)
+
+    if not resultados:
+        return None
 
     palavras = []
 

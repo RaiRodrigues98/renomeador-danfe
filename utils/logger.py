@@ -3,25 +3,24 @@ Configuração centralizada de logs do projeto.
 """
 
 import logging
+from pathlib import Path
 
 from config import LOG_DIR
 
-
-LOG_DIR.mkdir(
-    parents=True,
-    exist_ok=True
-)
+# Cria a pasta de logs caso não exista
+LOG_DIR.mkdir(parents=True, exist_ok=True)
 
 LOG_FILE = LOG_DIR / "renomeador.log"
 
 
 def configurar_logger() -> logging.Logger:
     """
-    Configura o logger principal do projeto.
+    Configura e retorna o logger principal do projeto.
     """
 
-    logger = logging.getLogger("RenomeadorDANFE")
+    logger = logging.getLogger("RenomeadorNF")
 
+    # Evita adicionar handlers duplicados
     if logger.handlers:
         return logger
 
@@ -32,20 +31,20 @@ def configurar_logger() -> logging.Logger:
         "%d/%m/%Y %H:%M:%S"
     )
 
-    arquivo = logging.FileHandler(
+    # Salva no arquivo
+    file_handler = logging.FileHandler(
         LOG_FILE,
         encoding="utf-8"
     )
 
-    arquivo.setFormatter(formatter)
+    file_handler.setFormatter(formatter)
 
-    console = logging.StreamHandler()
-    console.setFormatter(formatter)
+    # Exibe no terminal
+    console_handler = logging.StreamHandler()
+    console_handler.setFormatter(formatter)
 
-    logger.addHandler(arquivo)
-    logger.addHandler(console)
-
-    logger.propagate = False
+    logger.addHandler(file_handler)
+    logger.addHandler(console_handler)
 
     return logger
 

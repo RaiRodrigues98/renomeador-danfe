@@ -38,7 +38,10 @@ dropArea.addEventListener("drop", (e) => {
     e.preventDefault();
     dropArea.classList.remove("dragover");
 
-    arquivos = [...e.dataTransfer.files];
+    arquivos = [...e.dataTransfer.files].filter(
+        arquivo => arquivo.name.toLowerCase().endsWith(".pdf")
+    );
+
     atualizarLista();
 });
 
@@ -65,9 +68,6 @@ btnProcessar.addEventListener("click", async () => {
         return;
     }
 
-    let sucesso = 0;
-    let erro = 0;
-
     btnProcessar.disabled = true;
     btnSelecionar.disabled = true;
     btnDownload.style.display = "none";
@@ -84,90 +84,86 @@ btnProcessar.addEventListener("click", async () => {
     barra.style.width = "0%";
     barra.innerText = "0%";
 
-    texto.innerHTML = "Iniciando processamento...";
+    let sucesso = 0;
+    let erro = 0;
 
-    const total = arquivos.length;
+    const formData = new FormData();
 
-    for (let i = 0; i < total; i++) {
+    arquivos.forEach(file => {
+        formData.append("arquivos", file);
+    });
 
-        texto.innerHTML = `Processando ${i + 1} de ${total}...`;
+    try {
 
-        const formData = new FormData();
-        formData.append("arquivos", arquivos[i]);
+        texto.innerHTML = "Processando arquivos...";
 
-        try {
+        const resposta = await fetch("/processar", {
+            method: "POST",
+            body: formData
+        });
 
-            const resposta = await fetch("/processar", {
-                method: "POST",
-                body: formData
-            });
+        if (!resposta.ok) {
+            throw new Error("Erro ao processar.");
+        }
 
-            if (!resposta.ok) {
-                throw new Error("Erro ao processar o arquivo.");
-            }
+        const dados = await resposta.json();
 
-            const dados = await resposta.json();
+        dados.resultados.forEach((resultado, index) => {
 
-            dados.resultados.forEach(resultado => {
-
-                tabelaResultados.innerHTML += `
-                    <tr>
-                        <td>${resultado.arquivo_original}</td>
-                        <td>${resultado.numero_nf ?? "-"}</td>
-                        <td>${resultado.arquivo_final ?? "-"}</td>
-                        <td>${resultado.status}</td>
-                    </tr>
-                `;
-
+            if (resultado.status === "Sucesso") {
                 sucesso++;
-                totalSucesso.innerText = sucesso;
 
                 logs.innerHTML += `
                     <div class="text-success">
                         ✔ ${resultado.arquivo_original} → ${resultado.arquivo_final}
                     </div>
                 `;
+            } else {
+                erro++;
 
-                logs.scrollTop = logs.scrollHeight;
-
-            });
-
-        } catch (e) {
-
-            console.error(e);
-
-            erro++;
-            totalErro.innerText = erro;
+                logs.innerHTML += `
+                    <div class="text-danger">
+                        ✖ ${resultado.arquivo_original} → ${resultado.status}
+                    </div>
+                `;
+            }
 
             tabelaResultados.innerHTML += `
-                <tr class="table-danger">
-                    <td>${arquivos[i].name}</td>
-                    <td>-</td>
-                    <td>-</td>
-                    <td>Erro ao processar</td>
+                <tr>
+                    <td>${resultado.arquivo_original}</td>
+                    <td>${resultado.numero_nf ?? "-"}</td>
+                    <td>${resultado.arquivo_final ?? "-"}</td>
+                    <td>${resultado.status}</td>
                 </tr>
             `;
 
-            logs.innerHTML += `
-                <div class="text-danger">
-                    ✖ ${arquivos[i].name} → Erro ao processar
-                </div>
-            `;
+            totalSucesso.innerText = sucesso;
+            totalErro.innerText = erro;
+
+            const porcentagem = Math.round(((index + 1) / dados.resultados.length) * 100);
+
+            barra.style.width = porcentagem + "%";
+            barra.innerText = porcentagem + "%";
 
             logs.scrollTop = logs.scrollHeight;
 
+        });
+
+        texto.innerHTML = `✅ Processamento concluído!<br>Sucesso: ${sucesso} | Erros: ${erro}`;
+
+        if (sucesso > 0) {
+            btnDownload.style.display = "inline-block";
         }
 
-        const porcentagem = Math.round(((i + 1) / total) * 100);
+    } catch (e) {
 
-        barra.style.width = porcentagem + "%";
-        barra.innerText = porcentagem + "%";
+        console.error(e);
+
+        alert("Erro ao processar os arquivos.");
+
+        texto.innerHTML = "Erro durante o processamento.";
 
     }
-
-    texto.innerHTML = `✅ Processamento concluído!<br>Sucesso: ${sucesso} | Erros: ${erro}`;
-
-    btnDownload.style.display = "inline-block";
 
     btnProcessar.disabled = false;
     btnSelecionar.disabled = false;

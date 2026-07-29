@@ -26,31 +26,28 @@ class Estatisticas:
 
     @property
     def tempo_total(self) -> float:
+
+        if self.inicio == 0:
+            return 0.0
+
         if self.fim == 0:
             return round(perf_counter() - self.inicio, 2)
 
         return round(self.fim - self.inicio, 2)
 
-    def registrar_sucesso(self):
-        self.processados += 1
-        self.sucessos += 1
-
-    def registrar_erro(self):
-        self.processados += 1
-        self.erros += 1
-
-    def registrar_nao_encontrado(self):
-        self.processados += 1
-        self.nao_encontrados += 1
-
     @property
     def percentual_sucesso(self) -> float:
+
         if self.total_arquivos == 0:
             return 0.0
 
-        return round((self.sucessos / self.total_arquivos) * 100, 1)
+        return round(
+            (self.sucessos / self.total_arquivos) * 100,
+            1
+        )
 
     def resumo(self) -> dict:
+
         return {
             "total": self.total_arquivos,
             "processados": self.processados,
