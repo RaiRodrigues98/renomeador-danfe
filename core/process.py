@@ -140,4 +140,4 @@ def processar_pasta(
                 estatisticas
             )
 
-    return resultados, estatisticasok
+    return resultados, estatisticas

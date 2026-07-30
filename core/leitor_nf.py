@@ -1,101 +1,124 @@
 import re
 
+import cv2
 import numpy as np
-
-try:
-    import easyocr
-
-    _reader = easyocr.Reader(
-        ["pt"],
-        gpu=False,
-        verbose=False
-    )
-except Exception:
-    _reader = None
+from rapidocr_onnxruntime import RapidOCR
 
 
-def procurar_numero(imagem):
+_reader = RapidOCR()
 
-    resultados = _reader.readtext(
-        imagem,
-        detail=0,
-        paragraph=True
-    )
 
-    texto = " ".join(resultados)
+def normalizar_texto(texto: str) -> str:
+    texto = texto.upper()
+
+    substituicoes = {
+        "N°": "Nº",
+        "N0": "Nº",
+        "NO.": "Nº",
+        "NO ": "Nº ",
+        "SÉRlE": "SÉRIE",
+    }
+
+    for antigo, novo in substituicoes.items():
+        texto = texto.replace(antigo, novo)
+
+    return " ".join(texto.split())
+
+
+def procurar_numero(imagem: np.ndarray):
+    resultado, _ = _reader(imagem)
+
+    if not resultado:
+        print("RapidOCR não reconheceu nenhum texto.")
+        return None
+
+    textos = []
+
+    for item in resultado:
+        if len(item) >= 2:
+            textos.append(str(item[1]))
+
+    texto = normalizar_texto(" ".join(textos))
 
     print("\n========================")
+    print("TEXTO RECONHECIDO:")
     print(texto)
     print("========================")
 
     padroes = [
+        # Nº 000047375
+        r"N\s*[º°O0]?\s*[.:;-]?\s*(\d{5,9})",
 
-        # Nº 000046951
-        r"N[º°o]?\s*\.?\s*0*(\d{5,9})",
+        # NF-e Nº 000047375
+        r"NF[\s-]*E?\s*N?\s*[º°O0]?\s*[.:;-]?\s*(\d{5,9})",
 
-        # No. 000046951
-        r"No\.?\s*0*(\d{5,9})",
+        # 000047375 SÉRIE
+        r"(\d{5,9})\s*S[ÉE]RIE",
 
-        # 000046951 SÉRIE
-        r"0*(\d{5,9})\s*S[ÉE]RIE",
-
-        # 000046951 FOLHA
-        r"0*(\d{5,9})\s*FOLHA",
+        # 000047375 FOLHA
+        r"(\d{5,9})\s*FOLHA",
     ]
 
     for padrao in padroes:
-
-        m = re.search(
+        correspondencia = re.search(
             padrao,
             texto,
             flags=re.IGNORECASE
         )
 
-        if m:
-            return str(int(m.group(1)))
+        if correspondencia:
+            numero = correspondencia.group(1)
+
+            # Remove zeros iniciais:
+            return numero.lstrip("0") or "0"
 
     return None
 
 
 def ler_numero_nf(imagem: np.ndarray):
-
-    if _reader is None:
+    if imagem is None or imagem.size == 0:
+        print("Imagem vazia recebida pelo OCR.")
         return None
 
-    altura, largura = imagem.shape[:2]
+    tentativas = [imagem]
 
-    regioes = [
+    # Converte para escala de cinza
+    if len(imagem.shape) == 3:
+        cinza = cv2.cvtColor(imagem, cv2.COLOR_BGR2GRAY)
+    else:
+        cinza = imagem
 
-        # 1 - Campo NF-e (superior direita)
-        imagem[
-            0:int(altura * 0.28),
-            int(largura * 0.72):largura
-        ],
+    # Ampliação
+    ampliada = cv2.resize(
+        cinza,
+        None,
+        fx=3,
+        fy=3,
+        interpolation=cv2.INTER_CUBIC
+    )
 
-        # 2 - Bloco DANFE
-        imagem[
-            int(altura * 0.12):int(altura * 0.55),
-            int(largura * 0.22):int(largura * 0.60)
-        ],
+    tentativas.append(ampliada)
 
-        # 3 - Parte superior inteira
-        imagem[
-            0:int(altura * 0.40),
-            :
-        ],
+    # Binarização
+    binaria = cv2.adaptiveThreshold(
+        ampliada,
+        255,
+        cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+        cv2.THRESH_BINARY,
+        31,
+        10
+    )
 
-        # 4 - Documento inteiro
-        imagem
-    ]
+    tentativas.append(binaria)
 
-    for indice, regiao in enumerate(regioes):
+    for indice, tentativa in enumerate(tentativas, start=1):
+        print(f"Tentativa OCR {indice}")
 
-        print(f"\nTentativa {indice + 1}")
-
-        numero = procurar_numero(regiao)
+        numero = procurar_numero(tentativa)
 
         if numero:
             print(f"NF encontrada: {numero}")
             return numero
 
+    print("Número da NF não encontrado.")
     return None
