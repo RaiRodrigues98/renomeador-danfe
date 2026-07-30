@@ -1,11 +1,6 @@
 from pathlib import Path
 
-import cv2
-
-from core.image import (
-    melhorar_imagem,
-    recortar_numero_nota,
-)
+from core.image import recortar_numero_nota
 from core.leitor_nf import ler_numero_nf
 from core.models import ResultadoProcessamento
 from core.pdf import pdf_para_imagem
@@ -23,31 +18,16 @@ def processar_pdf(
     logger.info(f"Processando: {pdf_path.name}")
 
     try:
-
-        # Converte PDF para imagem
+        # Converte a primeira página do PDF para imagem
         imagem = pdf_para_imagem(pdf_path)
 
-      
-
-        # Recorta a região da NF
+        # Recorta somente a região onde normalmente aparece a NF
         recorte = recortar_numero_nota(imagem)
 
-       
-
-        # Primeira tentativa (imagem original)
+        # O leitor já possui uma tentativa original e uma tratada
         numero = ler_numero_nf(recorte)
 
-        # Segunda tentativa (imagem tratada)
         if numero is None:
-
-            imagem_tratada = melhorar_imagem(recorte)
-
-
-            numero = ler_numero_nf(imagem_tratada)
-
-        # Não encontrou
-        if numero is None:
-
             return ResultadoProcessamento(
                 arquivo_original=pdf_path.name,
                 arquivo_final=None,
@@ -58,7 +38,6 @@ def processar_pdf(
         novo_nome = f"{numero}.pdf"
 
         if pasta_saida:
-
             pasta_saida.mkdir(
                 parents=True,
                 exist_ok=True
@@ -67,10 +46,7 @@ def processar_pdf(
             destino = pasta_saida / novo_nome
 
         else:
-
-            destino = pdf_path.with_name(
-                novo_nome
-            )
+            destino = pdf_path.with_name(novo_nome)
 
         destino = renomear_arquivo(
             pdf_path,
@@ -85,7 +61,6 @@ def processar_pdf(
         )
 
     except Exception as e:
-
         logger.exception(e)
 
         return ResultadoProcessamento(
@@ -100,7 +75,6 @@ def processar_pasta(
     pasta: Path,
     callback=None
 ):
-
     estatisticas = Estatisticas()
 
     arquivos = sorted(
@@ -112,25 +86,20 @@ def processar_pasta(
     resultados = []
 
     for pdf in arquivos:
-
         resultado = processar_pdf(pdf)
 
         resultados.append(resultado)
 
         if resultado.status == "Sucesso":
-
             estatisticas.sucessos += 1
 
         elif resultado.status == "NF não localizada":
-
             estatisticas.nao_encontrados += 1
 
         else:
-
             estatisticas.erros += 1
 
         if callback:
-
             callback(
                 resultado,
                 estatisticas
