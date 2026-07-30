@@ -5,64 +5,93 @@ const btnSelecionar = document.getElementById("btnSelecionar");
 const btnProcessar = document.getElementById("btnProcessar");
 const btnDownload = document.getElementById("btnDownload");
 const tabelaResultados = document.getElementById("tabelaResultados");
-
 const progressoContainer = document.getElementById("progressoContainer");
 const barra = document.getElementById("barraProgresso");
 const texto = document.getElementById("textoProgresso");
-
 const totalArquivos = document.getElementById("totalArquivos");
 const totalSucesso = document.getElementById("totalSucesso");
 const totalErro = document.getElementById("totalErro");
-
 const logs = document.getElementById("logs");
 
 let arquivos = [];
+let sessaoAtual = null;
 
 btnSelecionar.addEventListener("click", () => input.click());
+input.addEventListener("change", () => definirArquivos([...input.files]));
 
-input.addEventListener("change", () => {
-    arquivos = [...input.files];
-    atualizarLista();
-});
-
-dropArea.addEventListener("dragover", (e) => {
-    e.preventDefault();
+dropArea.addEventListener("dragover", (evento) => {
+    evento.preventDefault();
     dropArea.classList.add("dragover");
 });
-
-dropArea.addEventListener("dragleave", () => {
+dropArea.addEventListener("dragleave", () => dropArea.classList.remove("dragover"));
+dropArea.addEventListener("drop", (evento) => {
+    evento.preventDefault();
     dropArea.classList.remove("dragover");
+    definirArquivos([...evento.dataTransfer.files]);
 });
 
-dropArea.addEventListener("drop", (e) => {
-    e.preventDefault();
-    dropArea.classList.remove("dragover");
-
-    arquivos = [...e.dataTransfer.files].filter(
-        arquivo => arquivo.name.toLowerCase().endsWith(".pdf")
+function definirArquivos(novosArquivos) {
+    arquivos = novosArquivos.filter((arquivo) =>
+        arquivo.name.toLowerCase().endsWith(".pdf")
     );
-
     atualizarLista();
-});
+}
 
 function atualizarLista() {
-
-    lista.innerHTML = "";
-
-    arquivos.forEach(file => {
-
-        lista.innerHTML += `
-            <div class="arquivo">
-                📄 ${file.name}
-            </div>
-        `;
-
+    lista.replaceChildren();
+    arquivos.forEach((arquivo) => {
+        const item = document.createElement("div");
+        item.className = "arquivo";
+        item.textContent = `📄 ${arquivo.name}`;
+        lista.appendChild(item);
     });
+}
 
+function atualizarProgresso(concluidos, total, nomeArquivo = "") {
+    const porcentagem = total ? Math.round((concluidos / total) * 100) : 0;
+    barra.style.width = `${porcentagem}%`;
+    barra.textContent = `${porcentagem}%`;
+    barra.setAttribute("aria-valuenow", String(porcentagem));
+    texto.textContent = concluidos < total
+        ? `Processando ${concluidos + 1} de ${total}: ${nomeArquivo}`
+        : `Processamento concluído: ${concluidos} de ${total}`;
+}
+
+function adicionarResultado(resultado) {
+    const sucesso = resultado.status === "Sucesso";
+
+    const log = document.createElement("div");
+    log.className = sucesso ? "text-success" : "text-danger";
+    log.textContent = sucesso
+        ? `✔ ${resultado.arquivo_original} → ${resultado.arquivo_final}`
+        : `✖ ${resultado.arquivo_original} → ${resultado.status}`;
+    logs.appendChild(log);
+
+    const linha = document.createElement("tr");
+    [
+        resultado.arquivo_original,
+        resultado.numero_nf ?? "-",
+        resultado.arquivo_final ?? "-",
+        resultado.status,
+    ].forEach((valor) => {
+        const celula = document.createElement("td");
+        celula.textContent = valor;
+        linha.appendChild(celula);
+    });
+    tabelaResultados.appendChild(linha);
+    logs.scrollTop = logs.scrollHeight;
+}
+
+async function lerErro(resposta) {
+    try {
+        const dados = await resposta.json();
+        return dados.detail || dados.mensagem || `Erro HTTP ${resposta.status}`;
+    } catch {
+        return `Erro HTTP ${resposta.status}`;
+    }
 }
 
 btnProcessar.addEventListener("click", async () => {
-
     if (arquivos.length === 0) {
         alert("Selecione pelo menos um PDF.");
         return;
@@ -70,108 +99,72 @@ btnProcessar.addEventListener("click", async () => {
 
     btnProcessar.disabled = true;
     btnSelecionar.disabled = true;
+    input.disabled = true;
     btnDownload.style.display = "none";
-
-    tabelaResultados.innerHTML = "";
-    logs.innerHTML = "";
-
-    totalArquivos.innerText = arquivos.length;
-    totalSucesso.innerText = "0";
-    totalErro.innerText = "0";
-
+    tabelaResultados.replaceChildren();
+    logs.replaceChildren();
+    totalArquivos.textContent = String(arquivos.length);
+    totalSucesso.textContent = "0";
+    totalErro.textContent = "0";
     progressoContainer.style.display = "block";
-
-    barra.style.width = "0%";
-    barra.innerText = "0%";
+    atualizarProgresso(0, arquivos.length, arquivos[0].name);
 
     let sucesso = 0;
     let erro = 0;
 
-    const formData = new FormData();
-
-    arquivos.forEach(file => {
-        formData.append("arquivos", file);
-    });
-
     try {
+        const respostaSessao = await fetch("/sessao", { method: "POST" });
+        if (!respostaSessao.ok) throw new Error(await lerErro(respostaSessao));
+        sessaoAtual = (await respostaSessao.json()).sessao_id;
 
-        texto.innerHTML = "Processando arquivos...";
+        for (let indice = 0; indice < arquivos.length; indice += 1) {
+            const arquivo = arquivos[indice];
+            atualizarProgresso(indice, arquivos.length, arquivo.name);
 
-        const resposta = await fetch("/processar", {
-            method: "POST",
-            body: formData
-        });
+            const formData = new FormData();
+            formData.append("sessao_id", sessaoAtual);
+            formData.append("arquivo", arquivo);
 
-        if (!resposta.ok) {
-            throw new Error("Erro ao processar.");
-        }
+            try {
+                const resposta = await fetch("/processar-arquivo", {
+                    method: "POST",
+                    body: formData,
+                });
+                if (!resposta.ok) throw new Error(await lerErro(resposta));
 
-        const dados = await resposta.json();
-
-        dados.resultados.forEach((resultado, index) => {
-
-            if (resultado.status === "Sucesso") {
-                sucesso++;
-
-                logs.innerHTML += `
-                    <div class="text-success">
-                        ✔ ${resultado.arquivo_original} → ${resultado.arquivo_final}
-                    </div>
-                `;
-            } else {
-                erro++;
-
-                logs.innerHTML += `
-                    <div class="text-danger">
-                        ✖ ${resultado.arquivo_original} → ${resultado.status}
-                    </div>
-                `;
+                const resultado = await resposta.json();
+                adicionarResultado(resultado);
+                if (resultado.status === "Sucesso") sucesso += 1;
+                else erro += 1;
+            } catch (falhaArquivo) {
+                erro += 1;
+                adicionarResultado({
+                    arquivo_original: arquivo.name,
+                    arquivo_final: null,
+                    numero_nf: null,
+                    status: `Erro: ${falhaArquivo.message}`,
+                });
             }
 
-            tabelaResultados.innerHTML += `
-                <tr>
-                    <td>${resultado.arquivo_original}</td>
-                    <td>${resultado.numero_nf ?? "-"}</td>
-                    <td>${resultado.arquivo_final ?? "-"}</td>
-                    <td>${resultado.status}</td>
-                </tr>
-            `;
-
-            totalSucesso.innerText = sucesso;
-            totalErro.innerText = erro;
-
-            const porcentagem = Math.round(((index + 1) / dados.resultados.length) * 100);
-
-            barra.style.width = porcentagem + "%";
-            barra.innerText = porcentagem + "%";
-
-            logs.scrollTop = logs.scrollHeight;
-
-        });
-
-        texto.innerHTML = `✅ Processamento concluído!<br>Sucesso: ${sucesso} | Erros: ${erro}`;
-
-        if (sucesso > 0) {
-            btnDownload.style.display = "inline-block";
+            totalSucesso.textContent = String(sucesso);
+            totalErro.textContent = String(erro);
+            atualizarProgresso(indice + 1, arquivos.length);
+            await new Promise((resolve) => requestAnimationFrame(resolve));
         }
 
-    } catch (e) {
-
-        console.error(e);
-
-        alert("Erro ao processar os arquivos.");
-
-        texto.innerHTML = "Erro durante o processamento.";
-
+        texto.innerHTML = `✅ Processamento concluído!<br>Sucesso: ${sucesso} | Erros: ${erro}`;
+        if (sucesso > 0) btnDownload.style.display = "inline-block";
+    } catch (falha) {
+        console.error(falha);
+        texto.textContent = `Erro durante o processamento: ${falha.message}`;
+        alert(`Erro ao iniciar o processamento: ${falha.message}`);
+    } finally {
+        btnProcessar.disabled = false;
+        btnSelecionar.disabled = false;
+        input.disabled = false;
     }
-
-    btnProcessar.disabled = false;
-    btnSelecionar.disabled = false;
-
 });
 
 btnDownload.addEventListener("click", () => {
-
-    window.location.href = "/download";
-
+    if (sessaoAtual) window.location.href = `/download/${sessaoAtual}`;
 });
