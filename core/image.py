@@ -38,8 +38,8 @@ def melhorar_imagem(imagem: np.ndarray) -> np.ndarray:
     ampliada = cv2.resize(
         cinza,
         None,
-        fx=3,
-        fy=3,
+        fx=1.5,
+        fy=1.5,
         interpolation=cv2.INTER_CUBIC
     )
 

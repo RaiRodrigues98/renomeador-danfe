@@ -27,12 +27,12 @@ def processar_pdf(
         # Converte PDF para imagem
         imagem = pdf_para_imagem(pdf_path)
 
-        cv2.imwrite("debug_pagina.png", imagem)
+      
 
         # Recorta a região da NF
         recorte = recortar_numero_nota(imagem)
 
-        cv2.imwrite("debug_recorte.png", recorte)
+       
 
         # Primeira tentativa (imagem original)
         numero = ler_numero_nf(recorte)
@@ -42,10 +42,6 @@ def processar_pdf(
 
             imagem_tratada = melhorar_imagem(recorte)
 
-            cv2.imwrite(
-                "debug_tratada.png",
-                imagem_tratada
-            )
 
             numero = ler_numero_nf(imagem_tratada)
 
