@@ -18,7 +18,6 @@ RUN apt-get update \
 COPY requirements.txt .
 
 RUN pip install --upgrade pip \
-    && pip uninstall -y opencv-python opencv-contrib-python opencv-contrib-python-headless || true \
     && pip install --no-cache-dir -r requirements.txt \
     && pip uninstall -y opencv-python opencv-contrib-python opencv-contrib-python-headless || true \
     && pip install --no-cache-dir --force-reinstall opencv-python-headless==4.13.0.92
@@ -31,7 +30,6 @@ RUN mkdir -p /tmp/renomeador-danfe/sessoes \
     && chown -R app:app /app /tmp/renomeador-danfe
 
 USER app
-
 EXPOSE 8080
 
-CMD ["sh", "-c", "exec uvicorn app:app --host 0.0.0.0 --port ${PORT:-8080} --workers ${WEB_CONCURRENCY:-1}"]
+CMD ["sh", "-c", "exec uvicorn app:app --host 0.0.0.0 --port ${PORT:-8080} --workers ${WEB_CONCURRENCY:-1} --proxy-headers --forwarded-allow-ips='*'"]

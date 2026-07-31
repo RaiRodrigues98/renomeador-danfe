@@ -45,3 +45,12 @@ Variáveis opcionais estão documentadas em `.env.example`. Para o plano com pou
 ## Observação operacional
 
 Arquivos enviados ficam no armazenamento temporário da instância e são removidos após o TTL. Um redeploy pode apagá-los antes do download; por isso, processe e baixe o ZIP na mesma sessão.
+
+
+## Otimizações de desempenho
+
+- Extração do texto nativo antes do OCR.
+- OCR limitado ao cabeçalho, sem renderizar a página completa.
+- Uma tentativa na imagem original e apenas um fallback de contraste.
+- Dois uploads simultâneos no navegador, mantendo o OCR protegido por lock.
+- Configuração recomendada para Railway com 1 GB: `PDF_DPI=170`, `OCR_MAX_WIDTH=1300`, `MAX_CONCURRENT_OCR=1`.

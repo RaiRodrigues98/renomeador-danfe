@@ -117,40 +117,55 @@ btnProcessar.addEventListener("click", async () => {
         if (!respostaSessao.ok) throw new Error(await lerErro(respostaSessao));
         sessaoAtual = (await respostaSessao.json()).sessao_id;
 
-        for (let indice = 0; indice < arquivos.length; indice += 1) {
-            const arquivo = arquivos[indice];
-            atualizarProgresso(indice, arquivos.length, arquivo.name);
+        let proximoIndice = 0;
+        let concluidos = 0;
+        const concorrencia = Math.min(2, arquivos.length);
 
-            const formData = new FormData();
-            formData.append("sessao_id", sessaoAtual);
-            formData.append("arquivo", arquivo);
+        async function processarProximo() {
+            while (true) {
+                const indice = proximoIndice;
+                proximoIndice += 1;
+                if (indice >= arquivos.length) return;
 
-            try {
-                const resposta = await fetch("/processar-arquivo", {
-                    method: "POST",
-                    body: formData,
-                });
-                if (!resposta.ok) throw new Error(await lerErro(resposta));
+                const arquivo = arquivos[indice];
+                atualizarProgresso(concluidos, arquivos.length, arquivo.name);
 
-                const resultado = await resposta.json();
-                adicionarResultado(resultado);
-                if (resultado.status === "Sucesso") sucesso += 1;
-                else erro += 1;
-            } catch (falhaArquivo) {
-                erro += 1;
-                adicionarResultado({
-                    arquivo_original: arquivo.name,
-                    arquivo_final: null,
-                    numero_nf: null,
-                    status: `Erro: ${falhaArquivo.message}`,
-                });
+                const formData = new FormData();
+                formData.append("sessao_id", sessaoAtual);
+                formData.append("arquivo", arquivo);
+
+                try {
+                    const resposta = await fetch("/processar-arquivo", {
+                        method: "POST",
+                        body: formData,
+                    });
+                    if (!resposta.ok) throw new Error(await lerErro(resposta));
+
+                    const resultado = await resposta.json();
+                    adicionarResultado(resultado);
+                    if (resultado.status === "Sucesso") sucesso += 1;
+                    else erro += 1;
+                } catch (falhaArquivo) {
+                    erro += 1;
+                    adicionarResultado({
+                        arquivo_original: arquivo.name,
+                        arquivo_final: null,
+                        numero_nf: null,
+                        status: `Erro: ${falhaArquivo.message}`,
+                    });
+                }
+
+                concluidos += 1;
+                totalSucesso.textContent = String(sucesso);
+                totalErro.textContent = String(erro);
+                atualizarProgresso(concluidos, arquivos.length);
+                await new Promise((resolve) => requestAnimationFrame(resolve));
             }
-
-            totalSucesso.textContent = String(sucesso);
-            totalErro.textContent = String(erro);
-            atualizarProgresso(indice + 1, arquivos.length);
-            await new Promise((resolve) => requestAnimationFrame(resolve));
         }
+
+        await Promise.all(
+            Array.from({ length: concorrencia }, () => processarProximo())
+        );
 
         texto.innerHTML = `✅ Processamento concluído!<br>Sucesso: ${sucesso} | Erros: ${erro}`;
         if (sucesso > 0) btnDownload.style.display = "inline-block";

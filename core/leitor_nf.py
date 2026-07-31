@@ -80,18 +80,23 @@ def _executar_ocr(imagem: np.ndarray) -> str:
     return "\n".join(linhas)
 
 
-def _variacoes(imagem: np.ndarray):
-    yield imagem
-    cinza = cv2.cvtColor(imagem, cv2.COLOR_RGB2GRAY) if imagem.ndim == 3 else imagem
-    yield cv2.convertScaleAbs(cinza, alpha=1.35, beta=8)
-    yield cv2.threshold(cinza, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)[1]
-
-
 def ler_numero_nf(imagem: np.ndarray) -> str | None:
+    """Localiza a NF com uma estratégia rápida e um único fallback.
+
+    A imagem original preserva mais detalhes e resolve a maioria dos DANFEs.
+    O tratamento de contraste só é executado quando a primeira leitura falha.
+    """
     if imagem is None or imagem.size == 0:
         return None
-    for variacao in _variacoes(imagem):
-        numero = localizar_numero(_executar_ocr(variacao))
-        if numero:
-            return numero
-    return None
+
+    numero = localizar_numero(_executar_ocr(imagem))
+    if numero:
+        return numero
+
+    cinza = (
+        cv2.cvtColor(imagem, cv2.COLOR_RGB2GRAY)
+        if imagem.ndim == 3
+        else imagem
+    )
+    contraste = cv2.convertScaleAbs(cinza, alpha=1.35, beta=8)
+    return localizar_numero(_executar_ocr(contraste))

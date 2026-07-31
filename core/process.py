@@ -1,4 +1,5 @@
 from pathlib import Path
+from time import perf_counter
 
 from core.leitor_nf import ler_numero_nf, localizar_numero
 from core.models import ResultadoProcessamento
@@ -8,6 +9,7 @@ from utils.logger import logger
 
 
 def processar_pdf(pdf_path: Path, pasta_saida: Path) -> ResultadoProcessamento:
+    inicio = perf_counter()
     logger.info("Processando arquivo=%s", pdf_path.name)
     try:
         validar_pdf(pdf_path)
@@ -40,6 +42,11 @@ def processar_pdf(pdf_path: Path, pasta_saida: Path) -> ResultadoProcessamento:
             numero,
             metodo,
             destino.name,
+        )
+        logger.info(
+            "Tempo de processamento arquivo=%s segundos=%.2f",
+            pdf_path.name,
+            perf_counter() - inicio,
         )
         return ResultadoProcessamento(
             arquivo_original=pdf_path.name,
