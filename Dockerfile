@@ -9,13 +9,19 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends libgomp1 libglib2.0-0 \
+    && apt-get install -y --no-install-recommends \
+        libgomp1 \
+        libglib2.0-0 \
+        libxcb1 \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
 
 RUN pip install --upgrade pip \
-    && pip install --no-cache-dir -r requirements.txt
+    && pip uninstall -y opencv-python opencv-contrib-python opencv-contrib-python-headless || true \
+    && pip install --no-cache-dir -r requirements.txt \
+    && pip uninstall -y opencv-python opencv-contrib-python opencv-contrib-python-headless || true \
+    && pip install --no-cache-dir --force-reinstall opencv-python-headless==4.13.0.92
 
 COPY . .
 
