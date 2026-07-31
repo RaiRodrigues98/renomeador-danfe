@@ -1,86 +1,97 @@
 import re
+from functools import lru_cache
 from threading import Lock
 
 import cv2
 import numpy as np
-from rapidocr_onnxruntime import RapidOCR
 
-# O modelo é carregado uma única vez por processo do servidor.
-_reader = RapidOCR()
+from config import OCR_MAX_WIDTH
+
 _reader_lock = Lock()
 
-_PADROES = tuple(
-    re.compile(padrao, re.IGNORECASE)
-    for padrao in (
-        r"NF[\s-]*E?\s*N?\s*[º°O0]?\s*[.:;\-]?\s*(\d{5,9})",
-        r"N\s*[º°O0]?\s*[.:;\-]?\s*(\d{5,9})",
-        r"(\d{5,9})\s*S[ÉE]RIE",
-        r"(\d{5,9})\s*FOLHA",
+# O rótulo é obrigatório para reduzir falsos positivos com CNPJ, chave e série.
+_PADROES_PRIORITARIOS = tuple(
+    re.compile(p, re.IGNORECASE)
+    for p in (
+        r"(?:NF[\s.\-]*E|NOTA\s+FISCAL(?:\s+ELETR[ÔO]NICA)?)\s*(?:N(?:[ÚU]MERO)?\s*)?[Nº°O0#.:;\-]*\s*(\d{1,9})\b",
+        r"\bN[º°O0#.:;\-]*\s*(\d{1,9})\s+(?:S[ÉE]RIE|SERIE)\b",
+        r"\b(\d{1,9})\s+(?:S[ÉE]RIE|SERIE)\b",
+        r"\b(\d{1,9})\s+(?:FOLHA|FL\.?\s*\d)\b",
     )
 )
 
 
 def normalizar_texto(texto: str) -> str:
-    texto = texto.upper()
-    substituicoes = {
-        "N°": "Nº",
-        "N0": "Nº",
-        "NO.": "Nº",
-        "NO ": "Nº ",
-        "SÉRLE": "SÉRIE",
-        "SERIE": "SÉRIE",
-    }
-    for original, novo in substituicoes.items():
-        texto = texto.replace(original, novo)
-    return " ".join(texto.split())
+    texto = (texto or "").upper().replace("\x00", " ")
+    texto = texto.replace("SÉRLE", "SÉRIE").replace("SERlE", "SERIE")
+    texto = re.sub(r"[\t\r]+", " ", texto)
+    texto = re.sub(r" +", " ", texto)
+    return texto.strip()
+
+
+def _numero_valido(valor: str) -> str | None:
+    digitos = re.sub(r"\D", "", valor)
+    if not digitos or len(digitos) > 9:
+        return None
+    numero = digitos.lstrip("0") or "0"
+    # Rejeita sequências claramente improváveis produzidas pelo OCR.
+    if len(numero) >= 6 and len(set(numero)) == 1:
+        return None
+    return numero
 
 
 def localizar_numero(texto: str) -> str | None:
     texto = normalizar_texto(texto)
-    for padrao in _PADROES:
-        correspondencia = padrao.search(texto)
-        if correspondencia:
-            numero = correspondencia.group(1)
-            return numero.lstrip("0") or "0"
+    for padrao in _PADROES_PRIORITARIOS:
+        for correspondencia in padrao.finditer(texto):
+            numero = _numero_valido(correspondencia.group(1))
+            if numero is not None:
+                return numero
     return None
 
 
-def _redimensionar(imagem: np.ndarray, largura_maxima: int = 1100) -> np.ndarray:
+@lru_cache(maxsize=1)
+def _obter_reader():
+    # Inicialização preguiçosa: o healthcheck responde sem aguardar o modelo OCR.
+    from rapidocr_onnxruntime import RapidOCR
+
+    return RapidOCR()
+
+
+def _redimensionar(imagem: np.ndarray) -> np.ndarray:
     altura, largura = imagem.shape[:2]
-    if largura <= largura_maxima:
+    if largura <= OCR_MAX_WIDTH:
         return imagem
-    proporcao = largura_maxima / largura
+    escala = OCR_MAX_WIDTH / largura
     return cv2.resize(
         imagem,
-        (largura_maxima, max(1, int(altura * proporcao))),
+        (OCR_MAX_WIDTH, max(1, round(altura * escala))),
         interpolation=cv2.INTER_AREA,
     )
 
 
 def _executar_ocr(imagem: np.ndarray) -> str:
-    imagem = _redimensionar(imagem)
-    # O objeto RapidOCR não deve executar duas inferências simultâneas.
+    imagem = _redimensionar(np.ascontiguousarray(imagem))
     with _reader_lock:
-        resultado, _ = _reader(imagem)
+        resultado, _ = _obter_reader()(imagem)
     if not resultado:
         return ""
-    return " ".join(str(item[1]) for item in resultado if len(item) >= 2)
+    linhas = [str(item[1]) for item in resultado if len(item) >= 2 and item[1]]
+    return "\n".join(linhas)
+
+
+def _variacoes(imagem: np.ndarray):
+    yield imagem
+    cinza = cv2.cvtColor(imagem, cv2.COLOR_RGB2GRAY) if imagem.ndim == 3 else imagem
+    yield cv2.convertScaleAbs(cinza, alpha=1.35, beta=8)
+    yield cv2.threshold(cinza, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)[1]
 
 
 def ler_numero_nf(imagem: np.ndarray) -> str | None:
     if imagem is None or imagem.size == 0:
         return None
-
-    texto = _executar_ocr(imagem)
-    numero = localizar_numero(texto)
-    if numero:
-        return numero
-
-    # Segunda leitura somente quando necessária, com contraste leve.
-    if imagem.ndim == 3:
-        cinza = cv2.cvtColor(imagem, cv2.COLOR_BGR2GRAY)
-    else:
-        cinza = imagem
-
-    tratada = cv2.convertScaleAbs(cinza, alpha=1.25, beta=5)
-    return localizar_numero(_executar_ocr(tratada))
+    for variacao in _variacoes(imagem):
+        numero = localizar_numero(_executar_ocr(variacao))
+        if numero:
+            return numero
+    return None

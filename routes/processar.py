@@ -4,12 +4,13 @@ from pathlib import Path
 
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 
-from config import MAX_UPLOAD_MB
+from config import MAX_CONCURRENT_OCR, MAX_UPLOAD_MB
 from core.process import processar_pdf
 from utils.files import limpar_sessoes_antigas, nome_seguro, pasta_sessao
 
 router = APIRouter()
 _CHUNK_SIZE = 1024 * 1024
+_PROCESSING_LIMIT = asyncio.Semaphore(MAX_CONCURRENT_OCR)
 
 
 @router.post("/sessao")
@@ -17,26 +18,29 @@ def criar_sessao() -> dict:
     limpar_sessoes_antigas()
     sessao_id = uuid.uuid4().hex
     pasta = pasta_sessao(sessao_id)
-    (pasta / "entrada").mkdir(parents=True, exist_ok=True)
-    (pasta / "saida").mkdir(parents=True, exist_ok=True)
+    (pasta / "entrada").mkdir(parents=True, exist_ok=False)
+    (pasta / "saida").mkdir(parents=True, exist_ok=False)
     return {"sessao_id": sessao_id}
 
 
 async def _salvar_upload(arquivo: UploadFile, destino: Path) -> None:
     limite = MAX_UPLOAD_MB * 1024 * 1024
     total = 0
-    with destino.open("wb") as saida:
-        while bloco := await arquivo.read(_CHUNK_SIZE):
-            total += len(bloco)
-            if total > limite:
-                saida.close()
-                destino.unlink(missing_ok=True)
-                raise HTTPException(
-                    status_code=413,
-                    detail=f"Arquivo maior que {MAX_UPLOAD_MB} MB.",
-                )
-            saida.write(bloco)
-    await arquivo.close()
+    try:
+        with destino.open("xb") as saida:
+            while bloco := await arquivo.read(_CHUNK_SIZE):
+                total += len(bloco)
+                if total > limite:
+                    raise HTTPException(
+                        status_code=413,
+                        detail=f"Arquivo maior que {MAX_UPLOAD_MB} MB.",
+                    )
+                saida.write(bloco)
+    except Exception:
+        destino.unlink(missing_ok=True)
+        raise
+    finally:
+        await arquivo.close()
 
 
 @router.post("/processar-arquivo")
@@ -53,19 +57,15 @@ async def processar_arquivo(
         pasta = pasta_sessao(sessao_id)
     except ValueError as erro:
         raise HTTPException(status_code=400, detail=str(erro)) from erro
-
-    if not pasta.exists():
+    if not pasta.is_dir():
         raise HTTPException(status_code=404, detail="Sessão não encontrada ou expirada.")
 
     nome = nome_seguro(arquivo.filename)
-    caminho_pdf = pasta / "entrada" / nome
+    caminho_pdf = pasta / "entrada" / f"{uuid.uuid4().hex}_{nome}"
     await _salvar_upload(arquivo, caminho_pdf)
 
-    # OCR e PyMuPDF são tarefas de CPU; executá-las fora do event loop
-    # mantém o servidor responsivo durante o processamento.
-    resultado = await asyncio.to_thread(
-        processar_pdf,
-        caminho_pdf,
-        pasta / "saida",
-    )
+    async with _PROCESSING_LIMIT:
+        resultado = await asyncio.to_thread(processar_pdf, caminho_pdf, pasta / "saida")
+    # Preserva o nome original exibido pela interface.
+    resultado.arquivo_original = nome
     return resultado.to_dict()

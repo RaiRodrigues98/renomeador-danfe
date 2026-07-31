@@ -1,51 +1,21 @@
-"""
-Configuração centralizada de logs do projeto.
-"""
-
 import logging
-from pathlib import Path
+import sys
 
-from config import LOG_DIR
-
-# Cria a pasta de logs caso não exista
-LOG_DIR.mkdir(parents=True, exist_ok=True)
-
-LOG_FILE = LOG_DIR / "renomeador.log"
+from config import LOG_LEVEL
 
 
 def configurar_logger() -> logging.Logger:
-    """
-    Configura e retorna o logger principal do projeto.
-    """
-
-    logger = logging.getLogger("RenomeadorNF")
-
-    # Evita adicionar handlers duplicados
+    logger = logging.getLogger("RenomeadorDANFE")
     if logger.handlers:
         return logger
 
-    logger.setLevel(logging.INFO)
-
-    formatter = logging.Formatter(
-        "%(asctime)s | %(levelname)s | %(message)s",
-        "%d/%m/%Y %H:%M:%S"
+    logger.setLevel(getattr(logging, LOG_LEVEL, logging.INFO))
+    handler = logging.StreamHandler(sys.stdout)
+    handler.setFormatter(
+        logging.Formatter("%(asctime)s | %(levelname)s | %(name)s | %(message)s")
     )
-
-    # Salva no arquivo
-    file_handler = logging.FileHandler(
-        LOG_FILE,
-        encoding="utf-8"
-    )
-
-    file_handler.setFormatter(formatter)
-
-    # Exibe no terminal
-    console_handler = logging.StreamHandler()
-    console_handler.setFormatter(formatter)
-
-    logger.addHandler(file_handler)
-    logger.addHandler(console_handler)
-
+    logger.addHandler(handler)
+    logger.propagate = False
     return logger
 
 

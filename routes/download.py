@@ -1,5 +1,4 @@
 import zipfile
-from pathlib import Path
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
@@ -17,14 +16,16 @@ def download(sessao_id: str):
         raise HTTPException(status_code=400, detail=str(erro)) from erro
 
     pasta_saida = pasta / "saida"
-    pdfs = sorted(pasta_saida.glob("*.pdf")) if pasta_saida.exists() else []
+    pdfs = sorted(pasta_saida.glob("*.pdf")) if pasta_saida.is_dir() else []
     if not pdfs:
         raise HTTPException(status_code=404, detail="Nenhum PDF processado com sucesso.")
 
     arquivo_zip = pasta / "Arquivos_Renomeados.zip"
-    with zipfile.ZipFile(arquivo_zip, "w", zipfile.ZIP_DEFLATED) as zipf:
+    temporario = pasta / ".Arquivos_Renomeados.tmp"
+    with zipfile.ZipFile(temporario, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as zipf:
         for pdf in pdfs:
             zipf.write(pdf, arcname=pdf.name)
+    temporario.replace(arquivo_zip)
 
     return FileResponse(
         path=arquivo_zip,
