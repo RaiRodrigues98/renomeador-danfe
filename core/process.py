@@ -1,9 +1,11 @@
 from pathlib import Path
 from time import perf_counter
 
-from core.leitor_nf import ler_numero_nf
+from config import BARCODE_CROP, BARCODE_DPI, OCR_CROP, OCR_DPI
+from core.barcode import ler_nf_codigo_barras
 from core.models import ResultadoProcessamento
-from core.pdf import renderizar_regioes_ocr, validar_pdf
+from core.ocr import ler_nf_ocr
+from core.pdf import renderizar_recorte, validar_pdf
 from utils.files import mover_arquivo
 from utils.logger import logger
 
@@ -14,29 +16,46 @@ def processar_pdf(pdf_path: Path, pasta_saida: Path) -> ResultadoProcessamento:
     try:
         validar_pdf(pdf_path)
 
-        metodo = "ocr-recorte-unico"
-        imagem = next(renderizar_regioes_ocr(pdf_path))
-        numero = ler_numero_nf(imagem)
+        inicio_barcode = perf_counter()
+        imagem_barcode = renderizar_recorte(pdf_path, BARCODE_CROP, BARCODE_DPI)
+        numero, chave = ler_nf_codigo_barras(imagem_barcode)
+        tempo_barcode = perf_counter() - inicio_barcode
+        metodo = "codigo-barras"
 
         if numero is None:
-            logger.warning("NF não localizada arquivo=%s", pdf_path.name)
+            inicio_ocr = perf_counter()
+            imagem_ocr = renderizar_recorte(pdf_path, OCR_CROP, OCR_DPI)
+            numero, texto_ocr = ler_nf_ocr(imagem_ocr)
+            tempo_ocr = perf_counter() - inicio_ocr
+            metodo = "ocr-fallback"
+            logger.info(
+                "Fallback OCR arquivo=%s tempo=%.3fs texto=%r",
+                pdf_path.name,
+                tempo_ocr,
+                texto_ocr[:100],
+            )
+
+        if numero is None:
+            logger.warning(
+                "NF não localizada arquivo=%s barcode_tempo=%.3fs",
+                pdf_path.name,
+                tempo_barcode,
+            )
             return ResultadoProcessamento(
                 arquivo_original=pdf_path.name,
                 status="NF não localizada",
             )
 
         destino = mover_arquivo(pdf_path, pasta_saida / f"{numero}.pdf")
+        total = perf_counter() - inicio
         logger.info(
-            "Arquivo processado arquivo=%s nf=%s metodo=%s destino=%s",
+            "Arquivo processado arquivo=%s nf=%s metodo=%s chave=%s tempo=%.3fs destino=%s",
             pdf_path.name,
             numero,
             metodo,
+            chave or "-",
+            total,
             destino.name,
-        )
-        logger.info(
-            "Tempo de processamento arquivo=%s segundos=%.2f",
-            pdf_path.name,
-            perf_counter() - inicio,
         )
         return ResultadoProcessamento(
             arquivo_original=pdf_path.name,

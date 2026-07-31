@@ -1,51 +1,17 @@
-"""
-Módulo responsável pela execução do OCR utilizando RapidOCR.
-"""
+from PIL import Image, ImageEnhance, ImageFilter, ImageOps
+import pytesseract
 
-import cv2
-import numpy as np
-from PIL import Image
-from numpy.typing import NDArray
-from rapidocr_onnxruntime import RapidOCR
-
-from core.image import melhorar_imagem
+from core.extractor import extrair_nf_do_texto
 
 
-# Inicializa o OCR apenas uma vez
-reader = RapidOCR()
-
-
-Imagem = Image.Image | NDArray[np.uint8]
-
-
-def ocr_imagem(imagem: Imagem) -> str:
-    """
-    Executa OCR utilizando RapidOCR.
-
-    Aceita:
-        - PIL.Image
-        - numpy.ndarray
-
-    Retorna:
-        Texto reconhecido.
-    """
-
-    if isinstance(imagem, Image.Image):
-        imagem = cv2.cvtColor(
-            np.array(imagem),
-            cv2.COLOR_RGB2BGR
-        )
-
-    imagem = melhorar_imagem(imagem)
-
-    resultado, _ = reader(imagem)
-
-    if not resultado:
-        return ""
-
-    textos = []
-
-    for item in resultado:
-        textos.append(item[1])
-
-    return " ".join(textos).strip()
+def ler_nf_ocr(imagem: Image.Image) -> tuple[str | None, str]:
+    cinza = ImageOps.grayscale(imagem)
+    cinza = ImageOps.autocontrast(cinza)
+    cinza = ImageEnhance.Contrast(cinza).enhance(1.6)
+    cinza = cinza.resize((cinza.width * 2, cinza.height * 2))
+    cinza = cinza.filter(ImageFilter.SHARPEN)
+    texto = pytesseract.image_to_string(
+        cinza,
+        config="--oem 1 --psm 6 -c tessedit_char_whitelist=0123456789NnOo.-",
+    )
+    return extrair_nf_do_texto(texto), texto.strip()

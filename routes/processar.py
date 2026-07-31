@@ -4,13 +4,13 @@ from pathlib import Path
 
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 
-from config import MAX_CONCURRENT_OCR, MAX_UPLOAD_MB
+from config import MAX_CONCURRENT_PROCESSING, MAX_UPLOAD_MB
 from core.process import processar_pdf
 from utils.files import limpar_sessoes_antigas, nome_seguro, pasta_sessao
 
 router = APIRouter()
 _CHUNK_SIZE = 1024 * 1024
-_PROCESSING_LIMIT = asyncio.Semaphore(MAX_CONCURRENT_OCR)
+_PROCESSING_LIMIT = asyncio.Semaphore(MAX_CONCURRENT_PROCESSING)
 
 
 @router.post("/sessao")

@@ -1,82 +1,30 @@
-"""
-Extração inteligente da NF utilizando RapidOCR.
-"""
-
 import re
-from typing import Optional
-
-from rapidocr_onnxruntime import RapidOCR
-
-from core.image import melhorar_imagem
 
 
-reader = RapidOCR()
-
-
-PALAVRAS_CHAVE = {
-    "NF",
-    "NF-E",
-    "NFE",
-    "DANFE",
-    "Nº",
-    "NO",
-    "NUMERO",
-    "NÚMERO",
-}
-
-
-def extrair_nf_por_coordenadas(imagem) -> Optional[str]:
-    """
-    Localiza o número da NF analisando a posição das palavras
-    reconhecidas pelo RapidOCR.
-    """
-
-    imagem = melhorar_imagem(imagem)
-
-    resultados, _ = reader(imagem)
-
-    if not resultados:
+def normalizar_numero_nf(valor: str) -> str | None:
+    digitos = re.sub(r"\D", "", valor or "")
+    if not digitos:
         return None
+    return digitos.lstrip("0") or "0"
 
-    palavras = []
 
-    for bbox, texto, confianca in resultados:
+def extrair_nf_da_chave(chave: str) -> str | None:
+    """Extrai nNF (9 posições) de uma chave NF-e de 44 dígitos."""
+    digitos = re.sub(r"\D", "", chave or "")
+    if len(digitos) != 44:
+        return None
+    return normalizar_numero_nf(digitos[25:34])
 
-        texto = texto.strip().upper()
 
-        if not texto:
-            continue
-
-        if confianca < 0.40:
-            continue
-
-        x = int(min(p[0] for p in bbox))
-        y = int(min(p[1] for p in bbox))
-        w = int(max(p[0] for p in bbox) - x)
-        h = int(max(p[1] for p in bbox) - y)
-
-        palavras.append(
-            {
-                "texto": texto.replace(".", ""),
-                "x": x,
-                "y": y,
-                "w": w,
-                "h": h,
-            }
-        )
-
-    palavras.sort(key=lambda p: (p["y"], p["x"]))
-
-    for indice, palavra in enumerate(palavras):
-
-        if palavra["texto"] not in PALAVRAS_CHAVE:
-            continue
-
-        for proxima in palavras[indice:indice + 8]:
-
-            numero = re.sub(r"\D", "", proxima["texto"])
-
-            if 5 <= len(numero) <= 9:
-                return numero.lstrip("0") or "0"
-
+def extrair_nf_do_texto(texto: str) -> str | None:
+    texto = (texto or "").upper().replace("O", "0")
+    padroes = (
+        r"(?:NF[\s.\-]*E)?[\s\S]{0,20}?N[º°0O#.:;\-]*\s*(\d{5,9})",
+        r"\b(0\d{8})\b",
+        r"\b(\d{5,9})\b",
+    )
+    for padrao in padroes:
+        achado = re.search(padrao, texto)
+        if achado:
+            return normalizar_numero_nf(achado.group(1))
     return None

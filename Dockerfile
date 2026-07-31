@@ -10,20 +10,15 @@ WORKDIR /app
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
-        libgomp1 \
-        libglib2.0-0 \
-        libxcb1 \
+        libzbar0 \
+        tesseract-ocr \
+        tesseract-ocr-por \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
-
-RUN pip install --upgrade pip \
-    && pip install --no-cache-dir -r requirements.txt \
-    && pip uninstall -y opencv-python opencv-contrib-python opencv-contrib-python-headless || true \
-    && pip install --no-cache-dir --force-reinstall opencv-python-headless==4.13.0.92
+RUN pip install --upgrade pip && pip install --no-cache-dir -r requirements.txt
 
 COPY . .
-
 RUN mkdir -p /tmp/renomeador-danfe/sessoes \
     && addgroup --system app \
     && adduser --system --ingroup app app \

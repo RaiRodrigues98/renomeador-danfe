@@ -17,14 +17,14 @@ BASE_DIR = Path(__file__).resolve().parent
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     limpar_sessoes_antigas()
-    logger.info("Renomeador DANFE v5.0 iniciado")
+    logger.info("Renomeador DANFE v6.0 iniciado")
     yield
-    logger.info("Renomeador DANFE v5.0 finalizado")
+    logger.info("Renomeador DANFE v6.0 finalizado")
 
 
 app = FastAPI(
     title="Renomeador DANFE",
-    version="5.0.0",
+    version="6.0.0",
     docs_url=None,
     redoc_url=None,
     lifespan=lifespan,
@@ -42,4 +42,4 @@ async def home(request: Request):
 
 @app.get("/health", include_in_schema=False)
 def health() -> JSONResponse:
-    return JSONResponse({"status": "ok", "version": "5.0.0"})
+    return JSONResponse({"status": "ok", "version": "6.0.0"})

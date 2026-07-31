@@ -119,7 +119,7 @@ btnProcessar.addEventListener("click", async () => {
 
         let proximoIndice = 0;
         let concluidos = 0;
-        const concorrencia = Math.min(2, arquivos.length);
+        const concorrencia = Math.min(3, arquivos.length);
 
         async function processarProximo() {
             while (true) {
