@@ -9,7 +9,6 @@ from config import OCR_MAX_WIDTH
 
 _reader_lock = Lock()
 
-# O rótulo é obrigatório para reduzir falsos positivos com CNPJ, chave e série.
 _PADROES_PRIORITARIOS = tuple(
     re.compile(p, re.IGNORECASE)
     for p in (
@@ -34,7 +33,6 @@ def _numero_valido(valor: str) -> str | None:
     if not digitos or len(digitos) > 9:
         return None
     numero = digitos.lstrip("0") or "0"
-    # Rejeita sequências claramente improváveis produzidas pelo OCR.
     if len(numero) >= 6 and len(set(numero)) == 1:
         return None
     return numero
@@ -52,51 +50,42 @@ def localizar_numero(texto: str) -> str | None:
 
 @lru_cache(maxsize=1)
 def _obter_reader():
-    # Inicialização preguiçosa: o healthcheck responde sem aguardar o modelo OCR.
     from rapidocr_onnxruntime import RapidOCR
 
     return RapidOCR()
 
 
-def _redimensionar(imagem: np.ndarray) -> np.ndarray:
+def _preparar_imagem(imagem: np.ndarray) -> np.ndarray:
+    """Aplica um único tratamento leve antes da única chamada ao OCR."""
+    if imagem.ndim == 3:
+        imagem = cv2.cvtColor(imagem, cv2.COLOR_RGB2GRAY)
+
     altura, largura = imagem.shape[:2]
-    if largura <= OCR_MAX_WIDTH:
-        return imagem
-    escala = OCR_MAX_WIDTH / largura
-    return cv2.resize(
-        imagem,
-        (OCR_MAX_WIDTH, max(1, round(altura * escala))),
-        interpolation=cv2.INTER_AREA,
+    if largura > OCR_MAX_WIDTH:
+        escala = OCR_MAX_WIDTH / largura
+        imagem = cv2.resize(
+            imagem,
+            (OCR_MAX_WIDTH, max(1, round(altura * escala))),
+            interpolation=cv2.INTER_AREA,
+        )
+
+    return np.ascontiguousarray(
+        cv2.convertScaleAbs(imagem, alpha=1.40, beta=5)
     )
 
 
 def _executar_ocr(imagem: np.ndarray) -> str:
-    imagem = _redimensionar(np.ascontiguousarray(imagem))
     with _reader_lock:
-        resultado, _ = _obter_reader()(imagem)
+        resultado, _ = _obter_reader()(_preparar_imagem(imagem))
     if not resultado:
         return ""
-    linhas = [str(item[1]) for item in resultado if len(item) >= 2 and item[1]]
-    return "\n".join(linhas)
+    return "\n".join(
+        str(item[1]) for item in resultado if len(item) >= 2 and item[1]
+    )
 
 
 def ler_numero_nf(imagem: np.ndarray) -> str | None:
-    """Localiza a NF com uma estratégia rápida e um único fallback.
-
-    A imagem original preserva mais detalhes e resolve a maioria dos DANFEs.
-    O tratamento de contraste só é executado quando a primeira leitura falha.
-    """
+    """Executa exatamente uma chamada ao OCR no recorte recebido."""
     if imagem is None or imagem.size == 0:
         return None
-
-    numero = localizar_numero(_executar_ocr(imagem))
-    if numero:
-        return numero
-
-    cinza = (
-        cv2.cvtColor(imagem, cv2.COLOR_RGB2GRAY)
-        if imagem.ndim == 3
-        else imagem
-    )
-    contraste = cv2.convertScaleAbs(cinza, alpha=1.35, beta=8)
-    return localizar_numero(_executar_ocr(contraste))
+    return localizar_numero(_executar_ocr(imagem))

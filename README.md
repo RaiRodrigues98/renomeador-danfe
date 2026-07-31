@@ -54,3 +54,8 @@ Arquivos enviados ficam no armazenamento temporário da instância e são removi
 - Uma tentativa na imagem original e apenas um fallback de contraste.
 - Dois uploads simultâneos no navegador, mantendo o OCR protegido por lock.
 - Configuração recomendada para Railway com 1 GB: `PDF_DPI=170`, `OCR_MAX_WIDTH=1300`, `MAX_CONCURRENT_OCR=1`.
+
+
+## Leitura v5
+
+A versão 5 foi ajustada para o layout fixo informado: renderiza somente a primeira página, recorta a caixa no canto superior direito (68%–100% da largura e 0%–16% da altura), executa uma única chamada ao OCR e remove zeros à esquerda do número da NF antes de renomear. Exemplo: `000048272` vira `48272.pdf`.

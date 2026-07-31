@@ -1,9 +1,9 @@
 from pathlib import Path
 from time import perf_counter
 
-from core.leitor_nf import ler_numero_nf, localizar_numero
+from core.leitor_nf import ler_numero_nf
 from core.models import ResultadoProcessamento
-from core.pdf import extrair_textos_primeira_pagina, renderizar_regioes_ocr, validar_pdf
+from core.pdf import renderizar_regioes_ocr, validar_pdf
 from utils.files import mover_arquivo
 from utils.logger import logger
 
@@ -14,19 +14,9 @@ def processar_pdf(pdf_path: Path, pasta_saida: Path) -> ResultadoProcessamento:
     try:
         validar_pdf(pdf_path)
 
-        numero = None
-        metodo = "texto"
-        for texto in extrair_textos_primeira_pagina(pdf_path):
-            numero = localizar_numero(texto)
-            if numero:
-                break
-
-        if numero is None:
-            metodo = "ocr"
-            for imagem in renderizar_regioes_ocr(pdf_path):
-                numero = ler_numero_nf(imagem)
-                if numero:
-                    break
+        metodo = "ocr-recorte-unico"
+        imagem = next(renderizar_regioes_ocr(pdf_path))
+        numero = ler_numero_nf(imagem)
 
         if numero is None:
             logger.warning("NF não localizada arquivo=%s", pdf_path.name)
